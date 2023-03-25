@@ -10,9 +10,9 @@ import (
 	"sync"
 )
 
-type client struct {
-	id        string
-	clientKey string
+type Client struct {
+	Id        string
+	ClientKey string
 	isClosing bool
 	mu        sync.Mutex
 }
@@ -32,7 +32,7 @@ type Channel struct {
 	ChannelName string
 }
 
-var Clients = make(map[*websocket.Conn]*client)
+var Clients = make(map[*websocket.Conn]*Client)
 var Register = make(chan *websocket.Conn)
 
 // array of key and connection
@@ -47,16 +47,16 @@ func BroadcastMessage(broadCastMessage BroadcastMessageType, channel Channel) er
 		return err
 	}
 	for connection, c := range Clients {
-		go func(connection *websocket.Conn, c *client) { // send to each client in parallel so we don't block on a slow client
+		go func(connection *websocket.Conn, c *Client) { // send to each Client in parallel so we don't block on a slow Client
 			c.mu.Lock()
 			defer c.mu.Unlock()
 			if c.isClosing {
 				return
 			}
-			if c.clientKey != application.ClientKey {
+			if c.ClientKey != application.ClientKey {
 				return
 			}
-			fmt.Println("sending message to client that matches: ", c.id)
+			fmt.Println("sending message to Client that matches: ", c.Id)
 			if err := connection.WriteMessage(websocket.TextMessage, []byte(broadCastMessage.Message)); err != nil {
 				c.isClosing = true
 				log.Println("write error:", err)
@@ -78,19 +78,19 @@ func RunHub() {
 			clientKey := incomingConnection.Key
 			connection := incomingConnection.Connection
 
-			clientConnection := &client{
-				id:        strconv.Itoa(rand.Int()),
-				clientKey: clientKey,
+			clientConnection := &Client{
+				Id:        strconv.Itoa(rand.Int()),
+				ClientKey: clientKey,
 			}
 
 			Clients[connection] = clientConnection
-			if err := connection.WriteMessage(websocket.TextMessage, []byte("Connected succesfully as "+clientConnection.id)); err != nil {
+			if err := connection.WriteMessage(websocket.TextMessage, []byte("Connected succesfully as "+clientConnection.Id)); err != nil {
 				log.Println("Error writing", err)
 				connection.WriteMessage(websocket.CloseMessage, []byte{})
 				connection.Close()
 				Unregister <- connection
 			}
-			fmt.Println("client registered with key: ", clientKey)
+			fmt.Println("Client registered with key: ", clientKey)
 
 		// Upon message received
 		case message := <-Broadcast:
@@ -99,7 +99,7 @@ func RunHub() {
 
 		// Unregistering the user.
 		case connection := <-Unregister:
-			// Remove the client from the hub
+			// Remove the Client from the hub
 			delete(Clients, connection)
 
 			log.Println("connection unregistered")

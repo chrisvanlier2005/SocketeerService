@@ -38,10 +38,31 @@ func ApiRoutes(api fiber.Router) {
 		})
 	})
 
-	api.Get("/applications", func(c *fiber.Ctx) error {
-		var apps []models.Application
-		models.DB.Find(&apps)
-		return c.JSON(apps)
+	api.Get("/connections", func(c *fiber.Ctx) error {
+		// get the server key
+		serverKey := c.Query("key")
+		if serverKey == "" {
+			return c.JSON(map[string]string{
+				"code":     "error",
+				"message:": "server key and message is required",
+			})
+		}
+
+		application := models.Application{}
+		if err := models.DB.Where("server_key = ?", serverKey).First(&application).Error; err != nil {
+			return c.JSON(map[string]string{
+				"code":    "error",
+				"message": "application with key " + serverKey + " Does not exist",
+			})
+		}
+
+		connections := make(map[string]*websockets.Client)
+		for _, value := range websockets.Clients {
+			if value.ClientKey == application.ClientKey {
+				connections[value.Id] = value
+			}
+		}
+		return c.JSON(connections)
 	})
 
 	api.Get("/users/:user", controllers.UserController{}.Show)
