@@ -2,7 +2,7 @@ package routes
 
 import (
 	"JobHiraMicroservice/controllers"
-	"JobHiraMicroservice/models"
+	controllersapi "JobHiraMicroservice/controllers/api"
 	"JobHiraMicroservice/websockets"
 	"github.com/gofiber/fiber/v2"
 )
@@ -38,31 +38,16 @@ func ApiRoutes(api fiber.Router) {
 		})
 	})
 
-	api.Get("/connections", func(c *fiber.Ctx) error {
-		// get the server key
-		serverKey := c.Query("key")
-		if serverKey == "" {
-			return c.JSON(map[string]string{
-				"code":     "error",
-				"message:": "server key and message is required",
-			})
-		}
+	api.Get("/connections", func(ctx *fiber.Ctx) error {
+		return controllersapi.ConnectionController{Ctx: ctx}.Index()
+	})
 
-		application := models.Application{}
-		if err := models.DB.Where("server_key = ?", serverKey).First(&application).Error; err != nil {
-			return c.JSON(map[string]string{
-				"code":    "error",
-				"message": "application with key " + serverKey + " Does not exist",
-			})
-		}
+	api.Get("/connections/:connection", func(ctx *fiber.Ctx) error {
+		return controllersapi.ConnectionController{Ctx: ctx}.Show()
+	})
 
-		connections := make(map[string]*websockets.Client)
-		for _, value := range websockets.Clients {
-			if value.ClientKey == application.ClientKey {
-				connections[value.Id] = value
-			}
-		}
-		return c.JSON(connections)
+	api.Get("/connections/:connection/remove", func(ctx *fiber.Ctx) error {
+		return controllersapi.ConnectionController{Ctx: ctx}.Delete()
 	})
 
 	api.Get("/users/:user", controllers.UserController{}.Show)
